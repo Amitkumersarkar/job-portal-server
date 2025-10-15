@@ -30,6 +30,8 @@ async function run() {
 
         // jobs related apis
         const jobsCollection = client.db("jobsPortal").collection('jobs');
+        const jobApplicationCollection = client.db("jobsPortal").collection('job-applications');
+
         app.get('/jobs', async (req, res) => {
             const cursor = jobsCollection.find();
             const result = await cursor.toArray();
@@ -44,6 +46,12 @@ async function run() {
 
         })
 
+        // jobsApplication Api
+        app.post('/job-applications', async (req, res) => {
+            const application = req.body;
+            const result = await jobApplicationCollection.insertOne(application);
+            res.send(result);
+        });
 
     } finally {
         // Ensures that the client will close when you finish/error
