@@ -46,6 +46,13 @@ async function run() {
 
         })
 
+        // add job api data
+        app.post('/jobs', async (req, res) => {
+            const newJob = req.body;
+            const result = await jobsCollection.insertOne(newJob); // ✅ correct collection
+            res.status(201).send({ success: true, id: result.insertedId });
+        });
+
         // jobsApplication Api
 
         app.get('/job-application', async (req, res) => {
