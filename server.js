@@ -13,6 +13,7 @@ app.use(cors({
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));
 
+// MongoDB URI
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.xqgbxlh.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 const client = new MongoClient(uri, {
@@ -30,9 +31,9 @@ async function run() {
         const jobsCollection = db.collection('jobs');
         const jobApplications = db.collection('job-applications');
 
-        console.log(" Connected to MongoDB");
+        console.log("Connected to MongoDB");
 
-        // 1 Get All or HR-specific Jobs 
+        // 1️⃣ Get all or HR-specific jobs
         app.get('/jobs', async (req, res) => {
             try {
                 const email = req.query.email;
@@ -44,7 +45,7 @@ async function run() {
             }
         });
 
-        // 2 Get Job by ID 
+        // 2️⃣ Get job by ID
         app.get('/jobs/:id', async (req, res) => {
             try {
                 const id = req.params.id;
@@ -55,7 +56,7 @@ async function run() {
             }
         });
 
-        // 3 Add Job 
+        // 3️⃣ Add job
         app.post('/jobs', async (req, res) => {
             try {
                 const newJob = req.body;
@@ -66,7 +67,23 @@ async function run() {
             }
         });
 
-        // 4 Get All Applications by User 
+        // 4️⃣ Delete a job by ID
+        app.delete('/jobs/:id', async (req, res) => {
+            try {
+                const id = req.params.id;
+                const result = await jobsCollection.deleteOne({ _id: new ObjectId(id) });
+
+                if (result.deletedCount === 1) {
+                    res.send({ success: true, message: 'Job deleted successfully' });
+                } else {
+                    res.status(404).send({ success: false, message: 'Job not found' });
+                }
+            } catch (err) {
+                res.status(500).send({ success: false, error: err.message });
+            }
+        });
+
+        // 5️⃣ Job Applications
         app.get('/job-application', async (req, res) => {
             try {
                 const email = req.query.email;
@@ -78,15 +95,12 @@ async function run() {
             }
         });
 
-        // 5 Add Job Application 
         app.post('/job-applications', async (req, res) => {
             try {
                 const application = req.body;
-
                 if (application.job_id && typeof application.job_id !== "string") {
                     application.job_id = application.job_id.toString();
                 }
-
                 const result = await jobApplications.insertOne(application);
                 res.send({ success: true, id: result.insertedId });
             } catch (err) {
@@ -94,23 +108,11 @@ async function run() {
             }
         });
 
-        // 6 Get all applications for a specific job ID
         app.get('/job-applications/jobs/:job_id', async (req, res) => {
             try {
                 const jobId = req.params.job_id;
-
-                let query;
-
-                // Try converting to ObjectId if your job_id is stored as ObjectId
-                if (ObjectId.isValid(jobId)) {
-                    query = { job_id: jobId }; // if stored as string
-                    // query = { job_id: new ObjectId(jobId) }; // if stored as ObjectId
-                } else {
-                    query = { job_id: jobId };
-                }
-
+                const query = { job_id: jobId };
                 const applications = await jobApplications.find(query).toArray();
-
                 res.status(200).json(applications);
             } catch (error) {
                 console.error('Error fetching job applications:', error);
@@ -118,12 +120,10 @@ async function run() {
             }
         });
 
-        // 7 Delete a job application by ID
         app.delete('/job-applications/:id', async (req, res) => {
             try {
                 const id = req.params.id;
-                const query = { _id: new ObjectId(id) };
-                const result = await jobApplications.deleteOne(query);
+                const result = await jobApplications.deleteOne({ _id: new ObjectId(id) });
 
                 if (result.deletedCount === 1) {
                     res.send({ success: true, message: 'Application deleted successfully' });
@@ -136,15 +136,16 @@ async function run() {
         });
 
     } catch (err) {
-        console.error(" Error connecting to DB:", err);
+        console.error("Error connecting to DB:", err);
     }
 }
 run().catch(console.dir);
 
+// Root
 app.get('/', (req, res) => {
     res.send('Jobs API is running');
 });
 
 app.listen(port, () => {
-    console.log(`🚀 Server running on http://localhost:${port}`);
+    console.log(` Server running on http://localhost:${port}`);
 });
