@@ -5,7 +5,7 @@ require('dotenv').config();
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const port = process.env.PORT || 3000;
 
-// middleware 
+// Middleware
 app.use(cors({
     origin: ['http://localhost:5173'],
     credentials: true,
@@ -30,15 +30,13 @@ async function run() {
         const jobsCollection = db.collection('jobs');
         const jobApplications = db.collection('job-applications');
 
-        console.log("✅ Connected to MongoDB");
+        console.log(" Connected to MongoDB");
 
-        // 1️⃣ Get All or HR-specific Jobs 
+        // 1 Get All or HR-specific Jobs 
         app.get('/jobs', async (req, res) => {
             try {
                 const email = req.query.email;
-                let query = {};
-                if (email) query = { hr_email: email };
-
+                const query = email ? { hr_email: email } : {};
                 const jobs = await jobsCollection.find(query).toArray();
                 res.send(jobs);
             } catch (err) {
@@ -46,7 +44,7 @@ async function run() {
             }
         });
 
-        // 2️⃣ Get Job by ID 
+        // 2 Get Job by ID 
         app.get('/jobs/:id', async (req, res) => {
             try {
                 const id = req.params.id;
@@ -57,7 +55,7 @@ async function run() {
             }
         });
 
-        // 3️⃣ Add Job 
+        // 3 Add Job 
         app.post('/jobs', async (req, res) => {
             try {
                 const newJob = req.body;
@@ -68,7 +66,7 @@ async function run() {
             }
         });
 
-        // 4️⃣ Get All Applications by User 
+        // 4 Get All Applications by User 
         app.get('/job-application', async (req, res) => {
             try {
                 const email = req.query.email;
@@ -80,10 +78,15 @@ async function run() {
             }
         });
 
-        //  5️⃣ Add Job Application 
+        // 5 Add Job Application 
         app.post('/job-applications', async (req, res) => {
             try {
                 const application = req.body;
+
+                if (application.job_id && typeof application.job_id !== "string") {
+                    application.job_id = application.job_id.toString();
+                }
+
                 const result = await jobApplications.insertOne(application);
                 res.send({ success: true, id: result.insertedId });
             } catch (err) {
@@ -91,16 +94,57 @@ async function run() {
             }
         });
 
+        // 6 Get all applications for a specific job ID
+        app.get('/job-applications/jobs/:job_id', async (req, res) => {
+            try {
+                const jobId = req.params.job_id;
+
+                let query;
+
+                // Try converting to ObjectId if your job_id is stored as ObjectId
+                if (ObjectId.isValid(jobId)) {
+                    query = { job_id: jobId }; // if stored as string
+                    // query = { job_id: new ObjectId(jobId) }; // if stored as ObjectId
+                } else {
+                    query = { job_id: jobId };
+                }
+
+                const applications = await jobApplications.find(query).toArray();
+
+                res.status(200).json(applications);
+            } catch (error) {
+                console.error('Error fetching job applications:', error);
+                res.status(500).json({ message: 'Server error fetching applications' });
+            }
+        });
+
+        // 7 Delete a job application by ID
+        app.delete('/job-applications/:id', async (req, res) => {
+            try {
+                const id = req.params.id;
+                const query = { _id: new ObjectId(id) };
+                const result = await jobApplications.deleteOne(query);
+
+                if (result.deletedCount === 1) {
+                    res.send({ success: true, message: 'Application deleted successfully' });
+                } else {
+                    res.status(404).send({ success: false, message: 'Application not found' });
+                }
+            } catch (err) {
+                res.status(500).send({ success: false, error: err.message });
+            }
+        });
+
     } catch (err) {
-        console.error(" Error:", err);
+        console.error(" Error connecting to DB:", err);
     }
 }
 run().catch(console.dir);
 
 app.get('/', (req, res) => {
-    res.send(' Jobs API is running');
+    res.send('Jobs API is running');
 });
 
 app.listen(port, () => {
-    console.log(`Server running on http://localhost:${port}`);
+    console.log(`🚀 Server running on http://localhost:${port}`);
 });
