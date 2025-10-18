@@ -2,18 +2,19 @@ const express = require('express');
 const cors = require('cors');
 const app = express();
 require('dotenv').config();
-const port = process.env.PORT || 3000;
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const port = process.env.PORT || 3000;
 
 // middleware 
-app.use(cors());
+app.use(cors({
+    origin: ['http://localhost:5173'],
+    credentials: true,
+}));
 app.use(express.json());
-// Serve uploaded logos statically
 app.use('/uploads', express.static('uploads'));
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.xqgbxlh.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
     serverApi: {
         version: ServerApiVersion.v1,
@@ -24,75 +25,82 @@ const client = new MongoClient(uri, {
 
 async function run() {
     try {
-        // Connect the client to the server	
-        const jobsCollection = client.db("jobsPortal").collection('jobs');
-        const jobApplicationCollection = client.db("jobsPortal").collection('job-applications');
-
         await client.connect();
-        // Send a ping to confirm a successful connection
-        await client.db("admin").command({ ping: 1 });
-        console.log("Pinged your deployment. You successfully connected to MongoDB!");
+        const db = client.db("jobsPortal");
+        const jobsCollection = db.collection('jobs');
+        const jobApplications = db.collection('job-applications');
 
-        // jobs related Apis
+        console.log("✅ Connected to MongoDB");
 
+        // 1️⃣ Get All or HR-specific Jobs 
         app.get('/jobs', async (req, res) => {
+            try {
+                const email = req.query.email;
+                let query = {};
+                if (email) query = { hr_email: email };
 
-            const email = req.query.email;
-            let query = {};
-            if (email) {
-                query = { hr_email: email }
+                const jobs = await jobsCollection.find(query).toArray();
+                res.send(jobs);
+            } catch (err) {
+                res.status(500).send({ error: err.message });
             }
+        });
 
-            const cursor = jobsCollection.find(query);
-            const result = await cursor.toArray();
-            res.send(result);
-        })
-
-        // to load data by get operation
+        // 2️⃣ Get Job by ID 
         app.get('/jobs/:id', async (req, res) => {
-            const id = req.params.id;
-            const query = { _id: new ObjectId(id) }
-            const result = await jobsCollection.findOne(query);
-            res.send(result);
+            try {
+                const id = req.params.id;
+                const job = await jobsCollection.findOne({ _id: new ObjectId(id) });
+                res.send(job);
+            } catch (err) {
+                res.status(500).send({ error: err.message });
+            }
+        });
 
-        })
-
-        // addJob Api
+        // 3️⃣ Add Job 
         app.post('/jobs', async (req, res) => {
-            const newJob = req.body;
-            const result = await jobsCollection.insertOne(newJob);
-            res.status(201).send({ success: true, id: result.insertedId });
+            try {
+                const newJob = req.body;
+                const result = await jobsCollection.insertOne(newJob);
+                res.status(201).send({ success: true, id: result.insertedId });
+            } catch (err) {
+                res.status(500).send({ error: err.message });
+            }
         });
 
-        // jobsApplication Api
-
+        // 4️⃣ Get All Applications by User 
         app.get('/job-application', async (req, res) => {
-            const email = req.query.email;
-            const query = { applicant_email: email }
-            const result = await jobApplicationCollection.find(query).toArray();
-            res.send(result);
-
-        })
-
-
-        app.post('/job-applications', async (req, res) => {
-            const application = req.body;
-            const result = await jobApplicationCollection.insertOne(application);
-            res.send(result);
+            try {
+                const email = req.query.email;
+                const query = email ? { applicant_email: email } : {};
+                const apps = await jobApplications.find(query).toArray();
+                res.send(apps);
+            } catch (err) {
+                res.status(500).send({ error: err.message });
+            }
         });
 
-    } finally {
-        // Ensures that the client will close when you finish/error
-        // await client.close();
+        //  5️⃣ Add Job Application 
+        app.post('/job-applications', async (req, res) => {
+            try {
+                const application = req.body;
+                const result = await jobApplications.insertOne(application);
+                res.send({ success: true, id: result.insertedId });
+            } catch (err) {
+                res.status(500).send({ error: err.message });
+            }
+        });
+
+    } catch (err) {
+        console.error(" Error:", err);
     }
 }
 run().catch(console.dir);
 
-
 app.get('/', (req, res) => {
-    res.send('jobs are available soon');
-})
+    res.send(' Jobs API is running');
+});
 
 app.listen(port, () => {
-    console.log(`jobs are available at ${port}`)
-})
+    console.log(`Server running on http://localhost:${port}`);
+});
