@@ -1,17 +1,15 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+// const jwt = require('jsonwebtoken');
 const app = express();
-require('dotenv').config();
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const { use } = require('react');
 const port = process.env.PORT || 3000;
 
 // Middleware
-app.use(cors({
-    origin: ['http://localhost:5173'],
-    credentials: true,
-}));
+app.use(cors());
 app.use(express.json());
-app.use('/uploads', express.static('uploads'));
 
 // MongoDB URI
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.xqgbxlh.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
@@ -26,14 +24,14 @@ const client = new MongoClient(uri, {
 
 async function run() {
     try {
-        await client.connect();
         const db = client.db("jobsPortal");
         const jobsCollection = db.collection('jobs');
         const jobApplications = db.collection('job-applications');
 
-        console.log("Connected to MongoDB");
+        // await client.connect();
+        // console.log("Connected to MongoDB");
 
-        // 1️⃣ Get all or HR-specific jobs
+        // 1 Get all or HR-specific jobs
         app.get('/jobs', async (req, res) => {
             try {
                 const email = req.query.email;
@@ -45,7 +43,7 @@ async function run() {
             }
         });
 
-        // 2️⃣ Get job by ID
+        // 2 Get job by ID
         app.get('/jobs/:id', async (req, res) => {
             try {
                 const id = req.params.id;
@@ -56,7 +54,7 @@ async function run() {
             }
         });
 
-        // 3️⃣ Add job
+        // 3 Add job
         app.post('/jobs', async (req, res) => {
             try {
                 const newJob = req.body;
@@ -67,7 +65,7 @@ async function run() {
             }
         });
 
-        // 4️⃣ Delete a job by ID
+        // 4 Delete a job by ID
         app.delete('/jobs/:id', async (req, res) => {
             try {
                 const id = req.params.id;
@@ -83,7 +81,7 @@ async function run() {
             }
         });
 
-        // 5️⃣ Job Applications
+        // 5 Job Applications
         app.get('/job-application', async (req, res) => {
             try {
                 const email = req.query.email;
@@ -146,9 +144,6 @@ app.get('/', (req, res) => {
     res.send('Jobs API is running');
 });
 
-if (process.env.NODE_ENV !== "production") {
-    app.listen(port, () => console.log(`Server running on http://localhost:${port}`));
-}
-
-module.exports = app;
-
+app.listen(port, () => {
+    console.log(` Server running on http://localhost:${port}`);
+});
